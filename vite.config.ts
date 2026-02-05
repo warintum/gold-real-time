@@ -5,12 +5,7 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // สำหรับ GitHub Pages: ใช้ชื่อ repository เป็น base path
-  // ตัวอย่าง: ถ้า repo ชื่อ "gold-real-time-web" ให้ใช้ '/gold-real-time-web/'
-  // สำหรับ custom domain: ใช้ '/'
-  base: process.env.GITHUB_PAGES === 'true'
-    ? '/gold-real-time/'
-    : '/',
+  base: '/',
   plugins: [inspectAttr(), react()],
   resolve: {
     alias: {
@@ -23,7 +18,6 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ['p5173.doodee.cc'],
     proxy: {
-      // Binance Futures API (มี XAUUSDT)
       '/api/binance': {
         target: 'https://fapi.binance.com',
         changeOrigin: true,
@@ -36,5 +30,15 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
+    commonjsOptions: {
+      include: [/node_modules/],
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'lightweight-charts': ['lightweight-charts'],
+        },
+      },
+    },
   },
 });

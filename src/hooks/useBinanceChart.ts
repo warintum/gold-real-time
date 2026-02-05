@@ -56,17 +56,17 @@ const parseKline = (kline: BinanceKline): CandleData => ({
   volume: parseFloat(kline[5]),
 });
 
-// CORS Proxy URL - ใช้สำหรับ Production (GitHub Pages)
-// thingproxy รองรับ GitHub Pages ดีกว่า
-const CORS_PROXY = 'https://thingproxy.freeboard.io/fetch/';
-
+// API Base URL
+// ⚠️ IMPORTANT: ต้อง deploy บน Vercel เท่านั้น (มี Serverless Functions)
+// ถ้าใช้ GitHub Pages จะใช้ไม่ได้เพราะ Binance บล็อกทุก CORS Proxy
 const getApiBaseUrl = (): string => {
-  // สำหรับ Vite dev server: ใช้ proxy
+  // Vite dev server: ใช้ proxy
   if (import.meta.env.DEV) {
     return '/api/binance';
   }
-  // Production: ใช้ CORS Proxy
-  return `${CORS_PROXY}https://fapi.binance.com`;
+  // Production (Vercel): ใช้ API Route ของตัวเอง
+  // ไฟล์ api/binance.js จะทำงานเป็น proxy ให้
+  return '/api';
 };
 
 // Fetch historical klines from Binance FUTURES API (มี XAUUSDT)
