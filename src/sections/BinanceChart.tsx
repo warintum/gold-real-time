@@ -62,11 +62,9 @@ export const BinanceChart = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    console.log('[Chart] Initializing chart...');
-
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height: chartContainerRef.current.clientHeight,
       layout: {
         background: { color: 'transparent' },
         textColor: '#94a3b8',
@@ -146,13 +144,10 @@ export const BinanceChart = ({
     candlestickSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
-    console.log('[Chart] Chart initialized, series created');
-
     // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         const { width, height } = chartContainerRef.current.getBoundingClientRect();
-        console.log('[Chart] Resizing to:', width, height);
         chartRef.current.applyOptions({ width, height });
       }
     };
@@ -168,16 +163,8 @@ export const BinanceChart = ({
 
   // Update chart data
   useEffect(() => {
-    console.log('[Chart] Data effect triggered, candleData length:', candleData.length);
-    console.log('[Chart] Series refs:', candlestickSeriesRef.current, volumeSeriesRef.current);
-    
-    if (!candlestickSeriesRef.current || !volumeSeriesRef.current || candleData.length === 0) {
-      console.log('[Chart] Skipping data update - missing refs or empty data');
-      return;
-    }
+    if (!candlestickSeriesRef.current || !volumeSeriesRef.current || candleData.length === 0) return;
 
-    console.log('[Chart] Formatting data...');
-    
     const formattedData: CandlestickData[] = candleData.map(c => ({
       time: c.time as Time,
       open: c.open,
@@ -192,22 +179,11 @@ export const BinanceChart = ({
       color: c.close >= c.open ? 'rgba(16, 185, 129, 0.5)' : 'rgba(244, 63, 94, 0.5)',
     }));
 
-    console.log('[Chart] Setting data...', formattedData.length, 'candles');
-    
-    try {
-      candlestickSeriesRef.current.setData(formattedData);
-      volumeSeriesRef.current.setData(volumeData);
-      console.log('[Chart] Data set successfully');
-      
-      // Fit content
-      chartRef.current?.timeScale().fitContent();
-      console.log('[Chart] Fit content applied');
-    } catch (err) {
-      console.error('[Chart] Error setting data:', err);
-    }
+    candlestickSeriesRef.current.setData(formattedData);
+    volumeSeriesRef.current.setData(volumeData);
+    chartRef.current?.timeScale().fitContent();
   }, [candleData]);
 
-  // Update hover data when mouse leaves chart
   const handleMouseLeave = useCallback(() => {
     setHoverData(null);
   }, []);
@@ -223,110 +199,102 @@ export const BinanceChart = ({
     const changePercent = (change / firstCandle.open) * 100;
     const volume = candleData.reduce((sum, d) => sum + d.volume, 0);
 
-    return {
-      high,
-      low,
-      open: firstCandle.open,
-      change,
-      changePercent,
-      volume,
-    };
+    return { high, low, open: firstCandle.open, change, changePercent, volume };
   })();
 
   const displayData = hoverData || (candleData.length > 0 ? candleData[candleData.length - 1] : null);
 
   return (
-    <section className="py-8">
-      <div className="container mx-auto px-4">
+    <section className="py-4 md:py-8">
+      <div className="container mx-auto px-2 md:px-4">
         <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between gap-4">
+          <CardHeader className="pb-2 md:pb-4 px-3 md:px-6">
+            {/* Header - Mobile Responsive */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
               <div>
-                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-gold" />
-                  กราฟ {symbol.replace('USDT', '/USD')}
-                  <Badge variant="outline" className="ml-2 text-xs">
+                <h2 className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-gold" />
+                  <span className="whitespace-nowrap">กราฟ {symbol.replace('USDT', '/USD')}</span>
+                  <Badge variant="outline" className="text-xs hidden sm:inline-flex">
                     Binance
                   </Badge>
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1">
                   กราฟแท่งเทียนแบบ Real-time
                 </p>
               </div>
 
-              <div className="flex items-center gap-1">
-                {/* Timeframe buttons */}
+              {/* Timeframe buttons - Scrollable on mobile */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1 sm:mx-0 sm:px-0 scrollbar-hide">
                 {(Object.keys(TIMEFRAME_LABELS) as TimeFrame[]).map((tf) => (
                   <Button
                     key={tf}
                     variant={timeframe === tf ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => changeTimeframe(tf)}
-                    className={timeframe === tf 
-                      ? 'bg-gold text-primary-foreground hover:bg-gold-dark min-w-[44px]' 
-                      : 'border-border hover:bg-secondary min-w-[44px]'
-                    }
+                    className={`flex-shrink-0 text-xs md:text-sm px-2 md:px-3 py-1 h-7 md:h-8 ${
+                      timeframe === tf 
+                        ? 'bg-gold text-primary-foreground hover:bg-gold-dark' 
+                        : 'border-border hover:bg-secondary'
+                    }`}
                   >
                     {TIMEFRAME_LABELS[tf]}
                   </Button>
                 ))}
-                
-                {/* Refresh button */}
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={refresh}
                   disabled={loading}
-                  className="border-border hover:bg-secondary ml-1"
+                  className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 ml-1"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 ${loading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </div>
 
-            {/* Stats and Connection Status */}
-            <div className="flex flex-wrap items-center gap-3 mt-4">
-              {/* Connection status */}
+            {/* Stats - Mobile Responsive */}
+            <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mt-2 md:mt-4">
               <Badge 
                 variant="outline" 
-                className={isConnected 
+                className={`text-xs ${isConnected 
                   ? 'border-emerald-500/30 text-emerald-400' 
                   : 'border-rose-500/30 text-rose-400'
-                }
+                }`}
               >
                 {isConnected ? (
-                  <><Wifi className="w-3 h-3 mr-1" /> Real-time</>
+                  <><Wifi className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">Real-time</span><span className="sm:hidden">Live</span></>
                 ) : (
-                  <><WifiOff className="w-3 h-3 mr-1" /> ไม่เชื่อมต่อ</>
+                  <><WifiOff className="w-3 h-3 mr-1" /> <span className="hidden sm:inline">ไม่เชื่อมต่อ</span><span className="sm:hidden">Offline</span></>
                 )}
               </Badge>
 
               {stats && (
                 <>
-                  <Badge variant="outline" className="border-blue-500/30 text-blue-400">
+                  <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-400 hidden sm:inline-flex">
                     เปิด: {stats.open.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </Badge>
-                  <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">
-                    สูงสุด: {stats.high.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-400">
+                    <span className="hidden md:inline">สูงสุด: </span>
+                    <span className="md:hidden">H: </span>
+                    {stats.high.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </Badge>
-                  <Badge variant="outline" className="border-rose-500/30 text-rose-400">
-                    ต่ำสุด: {stats.low.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  <Badge variant="outline" className="text-xs border-rose-500/30 text-rose-400">
+                    <span className="hidden md:inline">ต่ำสุด: </span>
+                    <span className="md:hidden">L: </span>
+                    {stats.low.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </Badge>
                   <Badge 
                     variant="outline" 
-                    className={stats.change >= 0 
+                    className={`text-xs ${stats.change >= 0 
                       ? 'border-emerald-500/30 text-emerald-400' 
                       : 'border-rose-500/30 text-rose-400'
-                    }
+                    }`}
                   >
-                    {stats.change >= 0 ? (
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                    ) : (
-                      <TrendingDown className="w-3 h-3 mr-1" />
-                    )}
+                    {stats.change >= 0 ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
                     {stats.change >= 0 ? '+' : ''}{stats.changePercent.toFixed(2)}%
                   </Badge>
-                  <Badge variant="outline" className="border-purple-500/30 text-purple-400">
+                  <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-400 hidden md:inline-flex">
                     <Activity className="w-3 h-3 mr-1" />
                     Vol: {(stats.volume / 1000000).toFixed(2)}M
                   </Badge>
@@ -334,76 +302,71 @@ export const BinanceChart = ({
               )}
             </div>
 
-            {/* Current/Hover Price Display */}
+            {/* Price Display - Mobile Responsive */}
             {displayData && (
-              <div className="flex flex-wrap items-center gap-4 mt-4 p-3 bg-secondary/30 rounded-lg">
-                <div>
-                  <span className="text-xs text-muted-foreground">ราคา</span>
-                  <div className={`text-lg font-bold ${displayData.close >= displayData.open ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {displayData.close.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <div className="mt-2 md:mt-4 p-2 md:p-3 bg-secondary/30 rounded-lg">
+                {/* Desktop: flex row, Mobile: compact grid */}
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 sm:gap-4">
+                  {/* ราคา */}
+                  <div className="flex items-baseline gap-1.5 sm:block">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">ราคา</span>
+                    <div className={`text-sm sm:text-base md:text-lg font-bold ${displayData.close >= displayData.open ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {displayData.close.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">เปิด</span>
-                  <div className="text-sm font-semibold">
-                    {displayData.open.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  
+                  {/* เปิด */}
+                  <div className="flex items-baseline gap-1 sm:block">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">เปิด</span>
+                    <div className="text-xs sm:text-sm font-semibold">
+                      {displayData.open.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">สูงสุด</span>
-                  <div className="text-sm font-semibold text-emerald-400">
-                    {displayData.high.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  
+                  {/* สูงสุด */}
+                  <div className="flex items-baseline gap-1 sm:block">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">สูง</span>
+                    <div className="text-xs sm:text-sm font-semibold text-emerald-400">
+                      {displayData.high.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">ต่ำสุด</span>
-                  <div className="text-sm font-semibold text-rose-400">
-                    {displayData.low.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  
+                  {/* ต่ำสุด */}
+                  <div className="flex items-baseline gap-1 sm:block">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground">ต่ำ</span>
+                    <div className="text-xs sm:text-sm font-semibold text-rose-400">
+                      {displayData.low.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">โวลุ่ม</span>
-                  <div className="text-sm font-semibold">
-                    {(displayData.volume / 1000).toFixed(1)}K
-                  </div>
-                </div>
-                <div>
-                  <span className="text-xs text-muted-foreground">เวลา</span>
-                  <div className="text-sm font-semibold">
-                    {new Date(displayData.time * 1000).toLocaleTimeString('th-TH', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })}
-                  </div>
+                  
                 </div>
               </div>
             )}
           </CardHeader>
 
-          <CardContent>
-            {/* Chart Container */}
+          <CardContent className="px-2 md:px-6 pb-3 md:pb-6">
+            {/* Chart Container - Responsive Height */}
             <div 
               ref={chartContainerRef}
               onMouseLeave={handleMouseLeave}
-              className="w-full min-h-[400px] relative"
-              style={{ height: '400px' }}
+              className="w-full relative rounded-lg overflow-hidden"
+              style={{ height: '280px' }}
             >
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
                   <div className="flex flex-col items-center gap-2">
-                    <RefreshCw className="w-8 h-8 animate-spin text-gold" />
-                    <span className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</span>
+                    <RefreshCw className="w-6 h-6 md:w-8 md:h-8 animate-spin text-gold" />
+                    <span className="text-xs md:text-sm text-muted-foreground">กำลังโหลด...</span>
                   </div>
                 </div>
               )}
               
               {error && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <WifiOff className="w-8 h-8 text-rose-500" />
-                    <span className="text-sm text-muted-foreground">{error}</span>
-                    <Button variant="outline" size="sm" onClick={refresh}>
+                  <div className="flex flex-col items-center gap-2 text-center px-4">
+                    <WifiOff className="w-6 h-6 md:w-8 md:h-8 text-rose-500" />
+                    <span className="text-xs md:text-sm text-muted-foreground">{error}</span>
+                    <Button variant="outline" size="sm" onClick={refresh} className="text-xs">
                       ลองใหม่
                     </Button>
                   </div>
@@ -411,18 +374,18 @@ export const BinanceChart = ({
               )}
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-6 mt-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+            {/* Legend - Mobile Responsive */}
+            <div className="flex justify-center gap-4 md:gap-6 mt-3 md:mt-4 text-xs md:text-sm">
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-emerald-500" />
                 <span className="text-muted-foreground">ขึ้น</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-rose-500" />
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-rose-500" />
                 <span className="text-muted-foreground">ลง</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-sm bg-blue-500/50" />
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-sm bg-blue-500/50" />
                 <span className="text-muted-foreground">โวลุ่ม</span>
               </div>
             </div>

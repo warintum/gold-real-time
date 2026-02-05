@@ -83,7 +83,7 @@ function App() {
       </main>
       
       <Footer />
-      <Toaster position="top-right" />
+      <Toaster position="bottom-center" className="sm:bottom-4 sm:right-4 sm:left-auto sm:top-auto" />
     </div>
   );
 }
