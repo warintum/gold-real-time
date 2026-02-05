@@ -4,6 +4,7 @@ import { Header } from '@/sections/Header';
 import { Hero } from '@/sections/Hero';
 import { PriceDisplay } from '@/sections/PriceDisplay';
 import { PriceChart } from '@/sections/PriceChart';
+import { BinanceChart } from '@/sections/BinanceChart';
 import { PriceUpdates } from '@/sections/PriceUpdates';
 import { TradingSignal } from '@/sections/TradingSignal';
 import { ProfitCalculator } from '@/sections/ProfitCalculator';
@@ -51,6 +52,13 @@ function App() {
         </div>
         
         <div id="chart">
+          <BinanceChart 
+            symbol="XAUUSDT" 
+            defaultTimeframe="1h" 
+          />
+        </div>
+        
+        <div id="thai-chart">
           <PriceChart 
             historicalData={historicalData} 
             currentPrice={currentPrice} 

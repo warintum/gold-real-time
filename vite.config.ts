@@ -17,5 +17,14 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: ['p5173.doodee.cc'],
+    proxy: {
+      // Binance Futures API (มี XAUUSDT)
+      '/api/binance': {
+        target: 'https://fapi.binance.com',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/binance/, ''),
+      },
+    },
   },
 });
