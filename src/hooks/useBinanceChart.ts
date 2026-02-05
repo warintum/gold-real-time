@@ -60,9 +60,9 @@ const parseKline = (kline: BinanceKline): CandleData => ({
 // corsproxy.io เป็นฟรี proxy ที่ไม่ต้องสมัคร
 //const CORS_PROXY = 'https://corsproxy.io/?';
 // ลองใช้ proxy อื่น
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';  // allorigins
+//const CORS_PROXY = 'https://api.allorigins.win/raw?url=';  // allorigins
 // หรือ
-//const CORS_PROXY = 'https://api.codetabs.com/v1/proxy?quest=';  // codetabs
+const CORS_PROXY = 'https://api.codetabs.com/v1/proxy?quest=';  // codetabs
 const getApiBaseUrl = (): string => {
   // สำหรับ Vite dev server: ใช้ proxy
   if (import.meta.env.DEV) {
