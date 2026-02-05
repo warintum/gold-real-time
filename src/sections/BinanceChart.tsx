@@ -62,103 +62,127 @@ export const BinanceChart = ({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      layout: {
-        background: { color: 'transparent' },
-        textColor: '#94a3b8',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      },
-      grid: {
-        vertLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
-        horzLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: {
-          color: '#64748b',
-          labelBackgroundColor: '#64748b',
+    // Delay chart creation to ensure container has proper dimensions
+    const initChart = () => {
+      if (!chartContainerRef.current) return;
+      
+      const container = chartContainerRef.current;
+      const { width, height } = container.getBoundingClientRect();
+      
+      // Use fixed height if container has no height yet
+      const chartHeight = height > 0 ? height : 280;
+      const chartWidth = width > 0 ? width : container.clientWidth;
+
+      const chart = createChart(container, {
+        width: chartWidth,
+        height: chartHeight,
+        layout: {
+          background: { color: 'transparent' },
+          textColor: '#94a3b8',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         },
-        horzLine: {
-          color: '#64748b',
-          labelBackgroundColor: '#64748b',
+        grid: {
+          vertLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
+          horzLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
         },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(148, 163, 184, 0.3)',
+        crosshair: {
+          mode: CrosshairMode.Normal,
+          vertLine: {
+            color: '#64748b',
+            labelBackgroundColor: '#64748b',
+          },
+          horzLine: {
+            color: '#64748b',
+            labelBackgroundColor: '#64748b',
+          },
+        },
+        rightPriceScale: {
+          borderColor: 'rgba(148, 163, 184, 0.3)',
+          scaleMargins: {
+            top: 0.1,
+            bottom: 0.2,
+          },
+        },
+        timeScale: {
+          borderColor: 'rgba(148, 163, 184, 0.3)',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        handleScroll: {
+          vertTouchDrag: false,
+        },
+      });
+
+      // Candlestick series
+      const candleSeries = chart.addSeries(CandlestickSeries, {
+        upColor: '#10b981',
+        downColor: '#f43f5e',
+        borderUpColor: '#10b981',
+        borderDownColor: '#f43f5e',
+        wickUpColor: '#10b981',
+        wickDownColor: '#f43f5e',
+      });
+
+      // Volume series
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        color: '#3b82f6',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: '',
+      });
+      volumeSeries.priceScale().applyOptions({
         scaleMargins: {
-          top: 0.1,
-          bottom: 0.2,
+          top: 0.8,
+          bottom: 0,
         },
-      },
-      timeScale: {
-        borderColor: 'rgba(148, 163, 184, 0.3)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScroll: {
-        vertTouchDrag: false,
-      },
-    });
+      });
 
-    // Candlestick series
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#f43f5e',
-      borderUpColor: '#10b981',
-      borderDownColor: '#f43f5e',
-      wickUpColor: '#10b981',
-      wickDownColor: '#f43f5e',
-    });
-
-    // Volume series
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#3b82f6',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: '',
-    });
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: {
-        top: 0.8,
-        bottom: 0,
-      },
-    });
-
-    // Crosshair move handler
-    chart.subscribeCrosshairMove((param) => {
-      if (param.time && param.point) {
-        const data = param.seriesData.get(candleSeries) as CandlestickData;
-        if (data) {
-          const candle = candleData.find(c => c.time === (param.time as number));
-          if (candle) {
-            setHoverData(candle);
+      // Crosshair move handler
+      chart.subscribeCrosshairMove((param) => {
+        if (param.time && param.point) {
+          const data = param.seriesData.get(candleSeries) as CandlestickData;
+          if (data) {
+            const candle = candleData.find(c => c.time === (param.time as number));
+            if (candle) {
+              setHoverData(candle);
+            }
           }
         }
-      }
+      });
+
+      chartRef.current = chart;
+      candlestickSeriesRef.current = candleSeries;
+      volumeSeriesRef.current = volumeSeries;
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          const { width, height } = chartContainerRef.current.getBoundingClientRect();
+          if (width > 0 && height > 0) {
+            chartRef.current.applyOptions({ width, height });
+          }
+        }
+      };
+
+      const resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(container);
+      
+      // Initial resize after a short delay
+      setTimeout(handleResize, 100);
+
+      return () => {
+        resizeObserver.disconnect();
+        chart.remove();
+      };
+    };
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const rafId = requestAnimationFrame(() => {
+      initChart();
     });
 
-    chartRef.current = chart;
-    candlestickSeriesRef.current = candleSeries;
-    volumeSeriesRef.current = volumeSeries;
-
-    // Handle resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        const { width, height } = chartContainerRef.current.getBoundingClientRect();
-        chartRef.current.applyOptions({ width, height });
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(handleResize);
-    resizeObserver.observe(chartContainerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   // Update chart data

@@ -57,12 +57,9 @@ const parseKline = (kline: BinanceKline): CandleData => ({
 });
 
 // CORS Proxy URL - ใช้สำหรับ Production (GitHub Pages)
-// corsproxy.io เป็นฟรี proxy ที่ไม่ต้องสมัคร
-//const CORS_PROXY = 'https://corsproxy.io/?';
-// ลองใช้ proxy อื่น
-//const CORS_PROXY = 'https://api.allorigins.win/raw?url=';  // allorigins
-// หรือ
-const CORS_PROXY = 'https://api.codetabs.com/v1/proxy?quest=';  // codetabs
+// thingproxy รองรับ GitHub Pages ดีกว่า
+const CORS_PROXY = 'https://thingproxy.freeboard.io/fetch/';
+
 const getApiBaseUrl = (): string => {
   // สำหรับ Vite dev server: ใช้ proxy
   if (import.meta.env.DEV) {
