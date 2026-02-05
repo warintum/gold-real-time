@@ -58,8 +58,11 @@ const parseKline = (kline: BinanceKline): CandleData => ({
 
 // CORS Proxy URL - ใช้สำหรับ Production (GitHub Pages)
 // corsproxy.io เป็นฟรี proxy ที่ไม่ต้องสมัคร
-const CORS_PROXY = 'https://corsproxy.io/?';
-
+//const CORS_PROXY = 'https://corsproxy.io/?';
+// ลองใช้ proxy อื่น
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';  // allorigins
+// หรือ
+//const CORS_PROXY = 'https://api.codetabs.com/v1/proxy?quest=';  // codetabs
 const getApiBaseUrl = (): string => {
   // สำหรับ Vite dev server: ใช้ proxy
   if (import.meta.env.DEV) {
@@ -77,9 +80,9 @@ const fetchKlines = async (
 ): Promise<CandleData[]> => {
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  
+
   console.log('[Binance Futures] Fetching klines:', url);
-  
+
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -97,7 +100,7 @@ const fetchKlines = async (
 const fetchCurrentPrice = async (symbol: string): Promise<number> => {
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}/fapi/v1/ticker/price?symbol=${symbol}`;
-  
+
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -118,7 +121,7 @@ export const useBinanceChart = (
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const lastCandleRef = useRef<CandleData | null>(null);
 
@@ -128,21 +131,21 @@ export const useBinanceChart = (
       setLoading(true);
       setError(null);
       console.log('[Binance Futures] Fetching historical data for', symbol, timeframe);
-      
+
       const data = await fetchKlines(symbol, timeframe, 200);
       console.log('[Binance Futures] Historical data loaded:', data.length, 'candles');
-      
+
       if (data.length === 0) {
         throw new Error('ไม่พบข้อมูลกราฟ');
       }
-      
+
       setCandleData(data);
       lastCandleRef.current = data[data.length - 1] || null;
-      
+
       // Fetch current price
       const price = await fetchCurrentPrice(symbol);
       setCurrentPrice(price);
-      
+
       setIsConnected(true);
       setError(null);
     } catch (err) {
@@ -164,20 +167,20 @@ export const useBinanceChart = (
     const wsSymbol = symbol.toLowerCase();
     // Binance Futures WebSocket
     const wsUrl = `wss://fstream.binance.com/ws/${wsSymbol}@kline_${timeframe}`;
-    
+
     console.log('[Binance Futures] Connecting WebSocket:', wsUrl);
-    
+
     try {
       const ws = new WebSocket(wsUrl);
-      
+
       ws.onopen = () => {
         console.log(`[Binance Futures] WebSocket connected: ${symbol} @ ${timeframe}`);
         setIsConnected(true);
       };
-      
+
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        
+
         if (data.k) {
           const kline = data.k;
           const newCandle: CandleData = {
@@ -188,13 +191,13 @@ export const useBinanceChart = (
             close: parseFloat(kline.c),
             volume: parseFloat(kline.v),
           };
-          
+
           setCurrentPrice(newCandle.close);
-          
+
           setCandleData((prev) => {
             const newData = [...prev];
             const lastIndex = newData.length - 1;
-            
+
             if (lastIndex >= 0 && newData[lastIndex].time === newCandle.time) {
               // Update existing candle
               newData[lastIndex] = newCandle;
@@ -206,24 +209,24 @@ export const useBinanceChart = (
                 newData.shift();
               }
             }
-            
+
             return newData;
           });
-          
+
           lastCandleRef.current = newCandle;
         }
       };
-      
+
       ws.onerror = (error) => {
         console.error('[Binance Futures] WebSocket error:', error);
         setIsConnected(false);
       };
-      
+
       ws.onclose = () => {
         console.log('[Binance Futures] WebSocket disconnected');
         setIsConnected(false);
       };
-      
+
       wsRef.current = ws;
     } catch (err) {
       console.error('[Binance Futures] WebSocket connection failed:', err);
@@ -246,7 +249,7 @@ export const useBinanceChart = (
     if (candleData.length > 0 && !loading) {
       connectWebSocket();
     }
-    
+
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -261,7 +264,7 @@ export const useBinanceChart = (
         connectWebSocket();
       }
     }, 30 * 60 * 1000);
-    
+
     return () => clearInterval(reconnectInterval);
   }, [connectWebSocket]);
 
@@ -274,7 +277,7 @@ export const useBinanceChart = (
         connectWebSocket();
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchHistoricalData, connectWebSocket]);
