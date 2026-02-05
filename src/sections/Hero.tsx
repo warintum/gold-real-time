@@ -37,28 +37,27 @@ export const Hero = ({ priceData, loading, onRefresh }: HeroProps) => {
       </div>
 
       {/* Content */}
-      <div className={`relative z-10 container mx-auto px-4 text-center transition-all duration-1000 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-      }`}>
-        {/* Badge */}
+      <div className={`relative z-10 container mx-auto px-4 text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+        }`}>
+        {/* Badge
         <Badge 
           variant="outline" 
           className="mb-6 border-gold/50 text-gold bg-gold/10 px-4 py-1"
         >
           <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse" />
           Real-time Updates
-        </Badge>
+        </Badge> */}
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 mt-16">
           <span className="text-foreground">ติดตามราคา</span>
-          <br />
-          <span className="text-gold text-shadow-gold">ทองคำไทย</span>
+
+          <p className="text-gold text-shadow-gold mt-4">ทองคำไทย</p>
         </h1>
 
         {/* Subtitle */}
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          ข้อมูลราคาทองคำ 96.5% แบบ Real-time พร้อมกราฟแนวโน้ม 
+          ข้อมูลราคาทองคำ 96.5% แบบ Real-time พร้อมกราฟแนวโน้ม
           สัญญาณซื้อขาย และเครื่องมือวิเคราะห์ครบครัน
         </p>
 
@@ -86,16 +85,15 @@ export const Hero = ({ priceData, loading, onRefresh }: HeroProps) => {
                   {goldBar?.sell.toLocaleString('th-TH', { minimumFractionDigits: 0 })}
                 </p>
                 <div className="flex items-center justify-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`${
-                      isPositive 
-                        ? 'border-emerald-500/30 text-emerald-400' 
-                        : 'border-rose-500/30 text-rose-400'
-                    }`}
+                  <Badge
+                    variant="outline"
+                    className={`${isPositive
+                      ? 'border-emerald-500/30 text-emerald-400'
+                      : 'border-rose-500/30 text-rose-400'
+                      }`}
                   >
                     {isPositive ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                    {isPositive ? '+' : ''}{goldBar?.change.toLocaleString('th-TH')} 
+                    {isPositive ? '+' : ''}{goldBar?.change.toLocaleString('th-TH')}
                     ({isPositive ? '+' : ''}{goldBar?.changePercent.toFixed(2)}%)
                   </Badge>
                 </div>
@@ -149,7 +147,7 @@ export const Hero = ({ priceData, loading, onRefresh }: HeroProps) => {
             { label: 'Alerts', value: 'แจ้งเตือน' },
             { label: 'Calculator', value: 'คำนวณ' },
           ].map((item, index) => (
-            <div 
+            <div
               key={index}
               className="bg-secondary/30 rounded-lg p-3 text-center"
             >
