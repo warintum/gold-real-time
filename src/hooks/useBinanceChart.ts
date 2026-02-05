@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export type TimeFrame = '5m' | '15m' | '30m' | '1h' | '4h' | '1d';
+export type TimeFrame = '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w';
 
 export interface CandleData {
   time: number;
@@ -33,6 +33,7 @@ const TIMEFRAME_LABELS: Record<TimeFrame, string> = {
   '1h': 'H1',
   '4h': 'H4',
   '1d': 'D1',
+  '1w': 'W1',
 };
 
 const TIMEFRAME_MINUTES: Record<TimeFrame, number> = {
@@ -42,6 +43,7 @@ const TIMEFRAME_MINUTES: Record<TimeFrame, number> = {
   '1h': 60,
   '4h': 240,
   '1d': 1440,
+  '1w': 10080,
 };
 
 // Convert Binance kline data to CandleData

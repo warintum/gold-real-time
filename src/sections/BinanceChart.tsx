@@ -29,6 +29,7 @@ const TIMEFRAME_LABELS: Record<TimeFrame, string> = {
   '1h': 'H1',
   '4h': 'H4',
   '1d': 'D1',
+  '1w': 'W1',
 };
 
 interface BinanceChartProps {
@@ -68,33 +69,33 @@ export const BinanceChart = ({
       height: 400,
       layout: {
         background: { color: 'transparent' },
-        textColor: 'hsl(var(--muted-foreground))',
+        textColor: '#94a3b8',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       },
       grid: {
-        vertLines: { color: 'hsl(var(--border))', style: 2 },
-        horzLines: { color: 'hsl(var(--border))', style: 2 },
+        vertLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
+        horzLines: { color: 'rgba(148, 163, 184, 0.25)', style: 1 },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: {
-          color: 'hsl(var(--muted-foreground))',
-          labelBackgroundColor: 'hsl(var(--muted-foreground))',
+          color: '#64748b',
+          labelBackgroundColor: '#64748b',
         },
         horzLine: {
-          color: 'hsl(var(--muted-foreground))',
-          labelBackgroundColor: 'hsl(var(--muted-foreground))',
+          color: '#64748b',
+          labelBackgroundColor: '#64748b',
         },
       },
       rightPriceScale: {
-        borderColor: 'hsl(var(--border))',
+        borderColor: 'rgba(148, 163, 184, 0.3)',
         scaleMargins: {
           top: 0.1,
           bottom: 0.2,
         },
       },
       timeScale: {
-        borderColor: 'hsl(var(--border))',
+        borderColor: 'rgba(148, 163, 184, 0.3)',
         timeVisible: true,
         secondsVisible: false,
       },
