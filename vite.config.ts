@@ -5,7 +5,12 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/',
+  // สำหรับ GitHub Pages: ใช้ชื่อ repository เป็น base path
+  // ตัวอย่าง: ถ้า repo ชื่อ "gold-real-time-web" ให้ใช้ '/gold-real-time-web/'
+  // สำหรับ custom domain: ใช้ '/'
+  base: process.env.GITHUB_PAGES === 'true'
+    ? '/gold-real-time/'
+    : '/',
   plugins: [inspectAttr(), react()],
   resolve: {
     alias: {
@@ -26,5 +31,10 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/binance/, ''),
       },
     },
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: true,
   },
 });
