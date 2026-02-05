@@ -56,14 +56,27 @@ const parseKline = (kline: BinanceKline): CandleData => ({
   volume: parseFloat(kline[5]),
 });
 
+// CORS Proxy URL - ใช้สำหรับ Production (GitHub Pages)
+// corsproxy.io เป็นฟรี proxy ที่ไม่ต้องสมัคร
+const CORS_PROXY = 'https://corsproxy.io/?';
+
+const getApiBaseUrl = (): string => {
+  // สำหรับ Vite dev server: ใช้ proxy
+  if (import.meta.env.DEV) {
+    return '/api/binance';
+  }
+  // Production: ใช้ CORS Proxy
+  return `${CORS_PROXY}https://fapi.binance.com`;
+};
+
 // Fetch historical klines from Binance FUTURES API (มี XAUUSDT)
 const fetchKlines = async (
   symbol: string,
   interval: TimeFrame,
   limit: number = 500
 ): Promise<CandleData[]> => {
-  // ใช้ Binance Futures API ซึ่งมี XAUUSDT
-  const url = `/api/binance/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
   
   console.log('[Binance Futures] Fetching klines:', url);
   
@@ -82,7 +95,8 @@ const fetchKlines = async (
 
 // Fetch current price from Binance FUTURES API
 const fetchCurrentPrice = async (symbol: string): Promise<number> => {
-  const url = `/api/binance/fapi/v1/ticker/price?symbol=${symbol}`;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/fapi/v1/ticker/price?symbol=${symbol}`;
   
   const response = await fetch(url);
 

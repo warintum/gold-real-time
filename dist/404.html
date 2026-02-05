@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      // สำหรับ GitHub Pages - redirect กลับไปที่หน้าหลักเพื่อให้ React Router ทำงาน
+      // เก็บ path ที่ผู้ใช้ต้องการเข้าถึงไว้ใน sessionStorage
+      const segment = 1; // จำนวน path segments ของ repository name (1 = /repo-name/)
+      const l = window.location;
+      const pathname = l.pathname.split('/').slice(segment).join('/');
+      
+      // Redirect ไปที่หน้าหลัก พร้อมเก็บ path ไว้
+      sessionStorage.setItem('redirectPath', pathname + l.search + l.hash);
+      l.replace(l.pathname.split('/').slice(0, segment + 1).join('/') + '/');
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
