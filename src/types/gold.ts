@@ -26,6 +26,7 @@ export interface PriceAlert {
   type: 'above' | 'below';
   isActive: boolean;
   createdAt: string;
+  lastNotified?: string | null;
 }
 
 export interface HistoricalData {

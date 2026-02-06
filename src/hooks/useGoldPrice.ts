@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GoldPriceData, PriceAlert, HistoricalData, TimeRange, PriceUpdate } from '@/types/gold';
+import { serviceWorkerManager } from '@/utils/serviceWorker';
 
 // Parse Thai number format (e.g., "71,631.00" -> 71631)
 const parseThaiNumber = (value: string): number => {
@@ -388,16 +389,27 @@ export const useGoldPrice = (refreshInterval: number = 60000) => {
   };
 };
 
-// Price alerts hook
-export const usePriceAlerts = () => {
+// Price alerts hook with notifications and sound
+export const usePriceAlerts = (currentPrice?: number) => {
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     try {
       const saved = localStorage.getItem('goldPriceAlerts');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migrate old alerts to include lastNotified field
+        return parsed.map((alert: PriceAlert) => ({
+          ...alert,
+          lastNotified: alert.lastNotified || null,
+        }));
+      }
+      return [];
     } catch {
       return [];
     }
   });
+  
+  const [triggeredAlerts, setTriggeredAlerts] = useState<PriceAlert[]>([]);
+  const previousTriggeredRef = useRef<Set<string>>(new Set());
 
   const addAlert = useCallback((targetPrice: number, type: 'above' | 'below') => {
     const newAlert: PriceAlert = {
@@ -406,6 +418,7 @@ export const usePriceAlerts = () => {
       type,
       isActive: true,
       createdAt: new Date().toISOString(),
+      lastNotified: null,
     };
     setAlerts(prev => {
       const updated = [...prev, newAlert];
@@ -445,20 +458,88 @@ export const usePriceAlerts = () => {
     });
   }, []);
 
-  const checkAlerts = useCallback((currentPrice: number) => {
+  const checkAlerts = useCallback((price: number) => {
     return alerts.filter(alert => {
       if (!alert.isActive) return false;
-      if (alert.type === 'above' && currentPrice >= alert.targetPrice) return true;
-      if (alert.type === 'below' && currentPrice <= alert.targetPrice) return true;
+      if (alert.type === 'above' && price >= alert.targetPrice) return true;
+      if (alert.type === 'below' && price <= alert.targetPrice) return true;
       return false;
     });
   }, [alerts]);
 
+  // Mark alert as notified
+  const markAlertNotified = useCallback((id: string) => {
+    setAlerts(prev => {
+      const updated = prev.map(a => 
+        a.id === id ? { ...a, lastNotified: new Date().toISOString() } : a
+      );
+      try {
+        localStorage.setItem('goldPriceAlerts', JSON.stringify(updated));
+      } catch {
+        // Ignore localStorage errors
+      }
+      return updated;
+    });
+  }, []);
+
+  // Reset notification status for an alert
+  const resetAlertNotification = useCallback((id: string) => {
+    setAlerts(prev => {
+      const updated = prev.map(a => 
+        a.id === id ? { ...a, lastNotified: null } : a
+      );
+      try {
+        localStorage.setItem('goldPriceAlerts', JSON.stringify(updated));
+      } catch {
+        // Ignore localStorage errors
+      }
+      return updated;
+    });
+  }, []);
+
+  // Check for price alerts when currentPrice changes
+  useEffect(() => {
+    if (currentPrice === undefined) return;
+
+    const newTriggeredAlerts = checkAlerts(currentPrice);
+    setTriggeredAlerts(newTriggeredAlerts);
+
+    // Check for newly triggered alerts
+    const newTriggeredIds = new Set(newTriggeredAlerts.map(a => a.id));
+    const previousTriggeredIds = previousTriggeredRef.current;
+
+    // Find alerts that just got triggered
+    newTriggeredAlerts.forEach(alert => {
+      if (!previousTriggeredIds.has(alert.id)) {
+        // This is a newly triggered alert
+        const lastNotified = alert.lastNotified ? new Date(alert.lastNotified).getTime() : 0;
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        // Only notify if not notified in last 5 minutes
+        if (now - lastNotified > fiveMinutes) {
+          // Send notification via service worker if available
+          if (serviceWorkerManager.isServiceWorkerSupported()) {
+            serviceWorkerManager.sendMessage('CHECK_PRICE_ALERTS', {
+              currentPrice,
+              alerts: [alert]
+            });
+          }
+        }
+      }
+    });
+
+    previousTriggeredRef.current = newTriggeredIds;
+  }, [currentPrice, checkAlerts]);
+
   return {
     alerts,
+    triggeredAlerts,
     addAlert,
     removeAlert,
     toggleAlert,
     checkAlerts,
+    markAlertNotified,
+    resetAlertNotification,
   };
 };

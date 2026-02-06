@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,34 +13,48 @@ import {
   TrendingDown, 
   AlertCircle,
   Volume2,
-  VolumeX
+  VolumeX,
+  BellRing,
+  BellOff,
+  Play,
+  Settings
 } from 'lucide-react';
 import { usePriceAlerts } from '@/hooks/useGoldPrice';
+import { notificationSound } from '@/utils/notificationSound';
+import { serviceWorkerManager } from '@/utils/serviceWorker';
 import type { PriceAlert } from '@/types/gold';
 
 interface PriceAlertSectionProps {
   currentPrice: number;
 }
 
+interface AlertSettings {
+  soundEnabled: boolean;
+  notificationEnabled: boolean;
+  browserNotifications: boolean;
+}
+
 const AlertItem = ({ 
   alert, 
   currentPrice, 
   onToggle, 
-  onRemove 
+  onRemove,
+  wasNotified
 }: { 
   alert: PriceAlert; 
   currentPrice: number;
   onToggle: () => void;
   onRemove: () => void;
+  wasNotified: boolean;
 }) => {
   const isTriggered = alert.type === 'above' 
     ? currentPrice >= alert.targetPrice 
     : currentPrice <= alert.targetPrice;
 
   return (
-    <div className={`flex items-center justify-between p-3 rounded-lg border ${
+    <div className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ${
       isTriggered 
-        ? 'bg-gold/10 border-gold/50' 
+        ? 'bg-gold/10 border-gold/50 shadow-lg shadow-gold/10' 
         : 'bg-secondary/30 border-border'
     }`}>
       <div className="flex items-center gap-3">
@@ -60,9 +74,9 @@ const AlertItem = ({
           </p>
         </div>
         {isTriggered && (
-          <Badge className="bg-gold/20 text-gold border-gold/50">
+          <Badge className={`${wasNotified ? 'bg-gold/20 text-gold' : 'bg-emerald-500/20 text-emerald-400 animate-pulse'} border-gold/50`}>
             <AlertCircle className="w-3 h-3 mr-1" />
-            ถึงเป้าแล้ว!
+            {wasNotified ? 'ถึงเป้าแล้ว!' : 'ถึงเป้า!'}
           </Badge>
         )}
       </div>
@@ -85,19 +99,128 @@ const AlertItem = ({
 };
 
 export const PriceAlertSection = ({ currentPrice }: PriceAlertSectionProps) => {
-  const { alerts, addAlert, removeAlert, toggleAlert, checkAlerts } = usePriceAlerts();
+  const { 
+    alerts, 
+    triggeredAlerts, 
+    addAlert, 
+    removeAlert, 
+    toggleAlert, 
+    markAlertNotified 
+  } = usePriceAlerts(currentPrice);
+  
   const [newAlertPrice, setNewAlertPrice] = useState('');
   const [newAlertType, setNewAlertType] = useState<'above' | 'below'>('above');
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [settings, setSettings] = useState<AlertSettings>({
+    soundEnabled: notificationSound.isEnabled(),
+    notificationEnabled: true,
+    browserNotifications: serviceWorkerManager.hasNotificationPermission(),
+  });
+  const [showSettings, setShowSettings] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>(
+    serviceWorkerManager.getNotificationPermission()
+  );
 
-  const triggeredAlerts = checkAlerts(currentPrice);
+  // Load settings from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('goldAlertSettings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSettings(prev => ({ ...prev, ...parsed }));
+        notificationSound.setEnabled(parsed.soundEnabled ?? true);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, []);
+
+  // Save settings to localStorage
+  const saveSettings = useCallback((newSettings: Partial<AlertSettings>) => {
+    const updated = { ...settings, ...newSettings };
+    setSettings(updated);
+    try {
+      localStorage.setItem('goldAlertSettings', JSON.stringify(updated));
+    } catch {
+      // Ignore errors
+    }
+  }, [settings]);
+
+  // Handle sound toggle
+  const handleSoundToggle = useCallback((enabled: boolean) => {
+    notificationSound.setEnabled(enabled);
+    saveSettings({ soundEnabled: enabled });
+    if (enabled) {
+      notificationSound.playTest();
+    }
+  }, [saveSettings]);
+
+  // Request browser notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    const permission = await serviceWorkerManager.requestNotificationPermission();
+    setPermissionStatus(permission);
+    saveSettings({ browserNotifications: permission === 'granted' });
+    
+    if (permission === 'granted') {
+      // Send test notification
+      serviceWorkerManager.showNotification('🔔 การแจ้งเตือนพร้อมใช้งาน', {
+        body: 'คุณจะได้รับการแจ้งเตือนเมื่อราคาทองถึงเป้าหมาย',
+        icon: '/gold-icon.png',
+        tag: 'test-notification'
+      });
+    }
+  }, [saveSettings]);
+
+  // Handle triggered alerts
+  useEffect(() => {
+    if (triggeredAlerts.length > 0 && settings.notificationEnabled) {
+      // Play sound for newly triggered alerts
+      const newTriggers = triggeredAlerts.filter(alert => {
+        const lastNotified = alert.lastNotified ? new Date(alert.lastNotified).getTime() : 0;
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+        return now - lastNotified > fiveMinutes;
+      });
+
+      if (newTriggers.length > 0) {
+        notificationSound.playSuccess();
+        
+        // Mark as notified
+        newTriggers.forEach(alert => {
+          markAlertNotified(alert.id);
+        });
+
+        // Show browser notification if permitted
+        if (settings.browserNotifications && permissionStatus === 'granted') {
+          newTriggers.forEach(alert => {
+            const direction = alert.type === 'above' ? 'ขึ้น' : 'ลง';
+            serviceWorkerManager.showNotification('🔔 แจ้งเตือนราคาทอง', {
+              body: `ราคาทอง${direction}ถึง ${alert.targetPrice.toLocaleString('th-TH')} บาท`,
+              icon: '/gold-icon.png',
+              tag: `gold-alert-${alert.id}`,
+              requireInteraction: true,
+            });
+          });
+        }
+      }
+    }
+  }, [triggeredAlerts, settings, permissionStatus, markAlertNotified]);
 
   const handleAddAlert = () => {
     const price = parseFloat(newAlertPrice);
     if (price > 0) {
       addAlert(price, newAlertType);
+      notificationSound.playAdd();
       setNewAlertPrice('');
     }
+  };
+
+  const handleRemoveAlert = (id: string) => {
+    removeAlert(id);
+    notificationSound.playRemove();
+  };
+
+  const handleTestSound = () => {
+    notificationSound.playTest();
   };
 
   return (
@@ -119,10 +242,10 @@ export const PriceAlertSection = ({ currentPrice }: PriceAlertSectionProps) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  onClick={() => setShowSettings(!showSettings)}
                   className="text-muted-foreground"
                 >
-                  {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                  <Settings className="w-4 h-4" />
                 </Button>
                 {triggeredAlerts.length > 0 && (
                   <Badge className="bg-gold/20 text-gold border-gold/50 animate-pulse">
@@ -133,6 +256,72 @@ export const PriceAlertSection = ({ currentPrice }: PriceAlertSectionProps) => {
               </div>
             </div>
           </CardHeader>
+
+          {/* Settings Panel */}
+          {showSettings && (
+            <div className="mx-6 mb-4 p-4 bg-secondary/50 rounded-lg border border-border">
+              <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                ตั้งค่าการแจ้งเตือน
+              </h4>
+              <div className="space-y-3">
+                {/* Sound Toggle */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {settings.soundEnabled ? (
+                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <VolumeX className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-muted-foreground">เสียงแจ้งเตือน</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleTestSound}
+                      className="h-7 px-2"
+                    >
+                      <Play className="w-3 h-3 mr-1" />
+                      ทดสอบ
+                    </Button>
+                    <Switch
+                      checked={settings.soundEnabled}
+                      onCheckedChange={handleSoundToggle}
+                    />
+                  </div>
+                </div>
+
+                {/* Browser Notifications */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {permissionStatus === 'granted' ? (
+                      <BellRing className="w-4 h-4 text-emerald-400" />
+                    ) : permissionStatus === 'denied' ? (
+                      <BellOff className="w-4 h-4 text-rose-400" />
+                    ) : (
+                      <Bell className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-muted-foreground">แจ้งเตือนในเบราว์เซอร์</span>
+                  </div>
+                  {permissionStatus !== 'granted' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={requestNotificationPermission}
+                      className="h-7 text-xs"
+                    >
+                      {permissionStatus === 'denied' ? 'ถูกบล็อก' : 'เปิดใช้งาน'}
+                    </Button>
+                  ) : (
+                    <Badge variant="outline" className="text-emerald-400 border-emerald-400/30">
+                      เปิดใช้งาน
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           <CardContent className="space-y-6">
             {/* Add New Alert */}
@@ -206,23 +395,29 @@ export const PriceAlertSection = ({ currentPrice }: PriceAlertSectionProps) => {
                       alert={alert}
                       currentPrice={currentPrice}
                       onToggle={() => toggleAlert(alert.id)}
-                      onRemove={() => removeAlert(alert.id)}
+                      onRemove={() => handleRemoveAlert(alert.id)}
+                      wasNotified={!!alert.lastNotified}
                     />
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Notification Permission */}
+            {/* Notification Info */}
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5" />
                 <div className="text-sm">
                   <p className="text-blue-400 font-medium mb-1">การแจ้งเตือน</p>
                   <p className="text-muted-foreground">
-                    การแจ้งเตือนจะแสดงบนหน้าเว็บเมื่อราคาถึงเป้าหมาย 
-                    ข้อมูลจะถูกบันทึกไว้ในเบราว์เซอร์ของคุณ
+                    การแจ้งเตือนจะแสดงทั้งในหน้าเว็บและแจ้งเตือนในเบราว์เซอร์ (หากเปิดใช้งาน) 
+                    เมื่อราคาถึงเป้าหมาย ข้อมูลจะถูกบันทึกไว้ในเบราว์เซอร์ของคุณ
                   </p>
+                  {permissionStatus === 'denied' && (
+                    <p className="text-rose-400 text-xs mt-2">
+                      ⚠️ การแจ้งเตือนในเบราว์เซอร์ถูกบล็อก กรุณาเปิดใช้งานในการตั้งค่าเบราว์เซอร์
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
